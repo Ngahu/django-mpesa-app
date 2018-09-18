@@ -21,14 +21,37 @@ import base64
 
 from .models import StkPush_Online_Payment
 
-from .serializers import StkPush_Online_PaymentCreateSerializer
+from .serializers import (
+    StkPush_Online_PaymentCreateSerializer,
+    StkPush_Call_Back_CreateSerializer
+    )
+
+
+
+
+class RootAPIView(APIView):
+    """
+    Description:Return  a list of all the endpoints that are going to be used\n
+    """
+
+    def get(self,request,format=None):
+        return Response({
+            "payment-pay":reverse("literacy:storystory_stk_pay", request=request, format=format),
+            "call-back":reverse("literacy:call_back", request=request, format=format),
+        })
+
+
+
+
+
+
+
 
 
 
 def to_bs(timestamp):
-    short_code = "601490"
+    short_code = "174379"
     passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
-
     the_date = str(timestamp)
     result = base64.b64encode(short_code+passkey+the_date)
     return str(result)
@@ -37,13 +60,22 @@ def to_bs(timestamp):
 
 class PaymentAPIView(APIView):
     """
+    Description:Endpoint to be used for stk push\n
+    Sample Request:\n
+    {
+      "business_short_code": "174379",
+      "transaction_type": "CustomerPayBillOnline",
+      "amount": "1200",
+      "party_a": "254708374149",
+      "party_b": "174379",
+      "phone_number": "254708374149",
+      "callback_url": "http://7658af3f.ngrok.io/lit/call-back/",
+      "account_reference": "Elimu1234",
+      "tansaction_description": "bought"
+    }\n
     """
 
     def post(self,request,*args,**kwargs):
-        current_time = datetime.datetime.now()
-        print(current_time)
-
-
         business_short_code = request.data['business_short_code']
         transaction_type = request.data['transaction_type'] 
         amount = request.data['amount']
@@ -52,15 +84,19 @@ class PaymentAPIView(APIView):
         phone_number = request.data['phone_number']
         callback_url = request.data['callback_url']
         account_reference = request.data['account_reference']
-        tansaction_description = request.data['tansacrion_description']
+        tansaction_description = request.data['tansaction_description']
         # timestamp = request.data['timestamp']
         # password = request.data['password']
 
+        current_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')#this is to format the date
 
-        timestamp = current_time
-        password = to_bs(current_time)
+
+        timestamp = datetime.datetime.now()
+        # timestamp = current_time  #for api call
+        password = to_bs(current_time) #for api call
 
         print(password)
+        print(current_time)
 
         data = {
             "business_short_code":business_short_code,
@@ -72,7 +108,7 @@ class PaymentAPIView(APIView):
             "callback_url":callback_url,
             "account_reference":account_reference,
             "tansaction_description":tansaction_description,
-            "timestamp":timestamp,
+            "timestamp":current_time,
             "password":password
         }
 
@@ -94,14 +130,36 @@ class PaymentAPIView(APIView):
 class CallBackURL(APIView):
 
     def post(self,request,*args,**kwargs):
-        request_data = request.data
-        print(request_data)
+        print(request.data)
+
+        merchant_request_id = request.data['Body']['stkCallback']['MerchantRequestID']
+        checkout_request_id = request.data['Body']['stkCallback']['CheckoutRequestID']
+        result_code = request.data['Body']['stkCallback']['ResultCode']
+        result_description = request.data['Body']['stkCallback']['ResultDesc']
 
 
-        message = {
-        "ResultCode": 0,
-        "ResultDesc": "The service was accepted successfully",
-        "ThirdPartyTransID": "1234567890"
+        # request_data = request.data
+        # # print(request_data)
+        # print(request.data['Body']['stkCallback']['CheckoutRequestID'])
+
+
+        data = {
+            "merchant_request_id":merchant_request_id,
+            "checkout_request_id":checkout_request_id,
+            "result_code":result_code,
+            "result_description":result_description
         }
+
+        serializer_class = StkPush_Call_Back_CreateSerializer(data=data)
         
-        return Response(message,status=status.HTTP_200_OK)
+        if serializer_class.is_valid():
+            new_callback = serializer_class.save()
+
+            message = {
+                "ResultCode": 0,
+                "ResultDesc": "The service was accepted successfully",
+                "ThirdPartyTransID": "1234567890"
+            }
+            return Response(message,status=status.HTTP_200_OK)
+        
+        return Response(serializer_class.errors,status=status.HTTP_400_BAD_REQUEST)

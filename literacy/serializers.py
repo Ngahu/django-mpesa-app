@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import StkPush_Online_Payment
+from .models import StkPush_Online_Payment,StkPush_Call_Back
 
 
 
@@ -41,3 +41,33 @@ class StkPush_Online_PaymentCreateSerializer(serializers.ModelSerializer):
             )
             new_trans.save()
             return new_trans
+
+
+
+
+
+class StkPush_Call_Back_CreateSerializer(serializers.ModelSerializer):
+    """
+    Description:Serialize the data passed by the callback
+    """
+    class Meta:
+        model = StkPush_Call_Back
+        fields = [
+            'merchant_request_id',
+            'checkout_request_id',
+            'result_code',
+            'result_description'
+        ]
+
+
+        def create(self,validated_data):
+            new_callback = StkPush_Call_Back(
+                merchant_request_id=validated_data['merchant_request_id'],
+                checkout_request_id = validated_data['checkout_request_id'],
+                result_code = validated_data['result_code'],
+                result_description = validated_data['result_description']
+            )
+            new_callback.save()
+            
+            return new_callback
+
