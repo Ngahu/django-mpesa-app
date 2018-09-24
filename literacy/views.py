@@ -20,6 +20,7 @@ from datetime import date
 import datetime
 import base64
 import json
+import requests
 
 from .models import StkPush_Online_Payment
 
@@ -31,6 +32,26 @@ from .serializers import (
     ResponseSaveSerializer,
     CallbackSaveSerializer
     )
+
+
+
+from requests.auth import HTTPBasicAuth
+
+
+def generate_auth_token():
+    """
+    Description:generate the access token required by mpesa for authentication.\n
+    """
+    consumer_key = "1gWEBFicQT4daQ11WlyPAD494j3MLe8L"
+    consumer_secret = "LA7ADyBEbfqDvqEu"
+    api_URL = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+    response = requests.get(api_URL, auth=HTTPBasicAuth(consumer_key, consumer_secret))
+
+    # format the response so as to get the token only
+    formated_response = json.loads(response.text)
+    token = formated_response['access_token']
+    
+    return token
 
 
 
@@ -58,6 +79,9 @@ class RootAPIView(APIView):
 
 
 def to_bs(timestamp):
+    """
+    Description:Generate the password for encrypting the request by base64 encoding BusinessShortcode, Passkey and Timestamp.
+    """
     short_code = "174379"
     passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
     the_date = str(timestamp)
@@ -71,15 +95,31 @@ class InitializePaymentAPIView(APIView):
     """
     Description:Endpoint to initialize payment \n
     {
-    "plan": "2",
+    "plan": 2000,
     "product_id": "4"
     }
+
+    {
+            "BusinessShortCode": "174379",
+            "Password":"MTc0Mzc5YmZiMjc5ZjlhYTliZGJjZjE1OGU5N2RkNzFhNDY3Y2QyZTBjODkzMDU5YjEwZjc4ZTZiNzJhZGExZWQyYzkxOTIwMTgwOTI0MTE1NjE5",
+            "Timestamp":"20180924115619",
+            "TransactionType": "CustomerPayBillOnline",
+            "Amount":"1000",
+            "PartyA": "254725743069",
+            "PartyB": "174379",
+            "PhoneNumber": "254725743069",
+            "CallBackURL": "http://30bdb99f.ngrok.io/lit/call-back/",
+            "AccountReference":"exam",
+            "TransactionDesc": "buy exam"
+            }
     """
     permission_classes = (IsAuthenticated,)
     
     def post(self,request,*args,**kwargs):
         plan = request.data['plan']
         product_id = request.data['product_id']
+
+        print(generate_auth_token())
 
 
         user = request.user.id
@@ -97,32 +137,26 @@ class InitializePaymentAPIView(APIView):
 
         if serializer_class.is_valid():
             purchase=serializer_class.save()
-            print(purchase)
-            print(purchase.plan)
+            # print(purchase.plan)
+            # print(purchase.unique_reference_id)
 
 
+            # initialize the stk push here
+            current_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')#this is to format the date
 
-            return Response(serializer_class.data,status=status.HTTP_201_CREATED)
-        
-        return Response(serializer_class.errors,status=status.HTTP_400_BAD_REQUEST)
-
-
-        current_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')#this is to format the date
-
-
-        timestamp = datetime.datetime.now()
-        # timestamp = current_time  #for api call
-        password = to_bs(current_time) #for api call
-
-        print(password)
-        print(current_time)
+            timestamp = datetime.datetime.now()
+            # timestamp = current_time  #for api call
+            password = to_bs(current_time) #for api call
+            
+            # print(password)
+            # print(current_time)
 
 
-        # initialize mpesa stk push 
-        access_token = "IAH1ToV4AtPiDs9PKob5sVdHiRNZ"
-        api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
-        headers = { "Authorization": "Bearer %s" % access_token }
-        request = {
+            # access_token = "BZbvR78t4fauO5DRkNqXZZuR5Gt4"
+            access_token = generate_auth_token()
+            api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+            headers = { "Authorization": "Bearer %s" % access_token }
+            request = {
             "BusinessShortCode": "174379",
             "Password": password,
             "Timestamp": current_time,
@@ -131,29 +165,52 @@ class InitializePaymentAPIView(APIView):
             "PartyA": "254725743069",
             "PartyB": "174379",
             "PhoneNumber": "254725743069",
-            "CallBackURL": "http://e25f4f24.ngrok.io/lit/call-back/",
+            "CallBackURL": "http://30bdb99f.ngrok.io/lit/call-back/",
             "AccountReference": purchase.unique_reference_id,
             "TransactionDesc": "buy exam"
             }
+            response = requests.post(api_url, json = request, headers=headers)
+
+            # print (response.text)
+
+            # format the response to json
+            the_response = json.loads(response.text)
+
+            # print(the_response['CheckoutRequestID'])
+            # print(the_response['ResponseCode'])
+            # print(the_response['MerchantRequestID'])
+            # print(the_response['ResponseDescription'])
+            # print(the_response['CustomerMessage'])
+
+            # save the response from the mpesa response
+            data = {
+                "amount":purchase.plan,
+                "user":user,
+                "checkout_request_id":the_response['CheckoutRequestID'],
+                "merchant_request_id":the_response['MerchantRequestID'],
+                "response_code":the_response['ResponseCode'],
+                "response_description":the_response['ResponseDescription'],
+                "customer_message": the_response['CustomerMessage'],
+                "timestamp":current_time,
+                "account_reference":purchase.unique_reference_id
+            }
+            stk_response_save_serializer = ResponseSaveSerializer(data=data)
+
+            if stk_response_save_serializer.is_valid():
+                new_stk_response = stk_response_save_serializer.save()
+                return Response(stk_response_save_serializer.data,status=status.HTTP_201_CREATED)
+            
+            return Response(stk_response_save_serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+
+            
+
+
+            # print(current_time)
+
+
+            return Response(serializer_class.data,status=status.HTTP_201_CREATED)
         
-        response = requests.post(api_url, json = request, headers=headers)
-
-        # save the response from mpesa
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        return Response(serializer_class.errors,status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -233,7 +290,7 @@ class PaymentAPIView(APIView):
 class CallBackURL(APIView):
 
     def post(self,request,*args,**kwargs):
-        print(request.data)
+        print(request.data['Body']['stkCallback'])
 
         merchant_request_id = request.data['Body']['stkCallback']['MerchantRequestID']
         checkout_request_id = request.data['Body']['stkCallback']['CheckoutRequestID']

@@ -10,24 +10,35 @@ from .models import (
 
 
 class ResponseSaveSerializer(serializers.ModelSerializer):
+    """
+    Description:Serializer to save the response returned immediately after an stk push
+    """
     class Meta:
         model = PaymentTransactions
         fields = [
+            'user',
             'merchant_request_id',
             'checkout_request_id',
             'response_code',
             'response_description',
-            'customer_message'
+            'customer_message',
+            'timestamp',
+            'account_reference',
+            'amount'
             
         ]
 
         def create(self,validated_data):
             new_response = PaymentTransactions(
+                user=validated_data['user'],
                 merchant_request_id=validated_data['merchant_request_id'],
                 checkout_request_id = validated_data['checkout_request_id'],
                 response_code = validated_data['response_code'],
                 response_description = validated_data['response_description'],
-                customer_message = validated_data['customer_message']
+                customer_message = validated_data['customer_message'],
+                timestamp = validated_data['timestamp'],
+                account_reference = validated_data['account_reference'],
+                amount = validated_data['amount']
             )
 
             new_response.save()

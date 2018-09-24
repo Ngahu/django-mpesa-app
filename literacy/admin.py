@@ -60,8 +60,10 @@ admin.site.register(PurchaseRequest,PurchaseRequestAdmin)
 
 class PaymentTransactionsAdmin(admin.ModelAdmin):
     list_display = (
-        'phone_number',
-        'mpesa_receipt_number',
+        'merchant_request_id',
+        'checkout_request_id',
+        # 'phone_number',
+        # 'mpesa_receipt_number',
         'status',
         'date_added'
     )

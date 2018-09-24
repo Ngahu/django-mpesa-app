@@ -104,7 +104,7 @@ class PurchaseRequest(models.Model):
     product_id = models.PositiveSmallIntegerField()
     phone_number = models.CharField(max_length=50,blank=True, null=True)
     plan = models.CharField(max_length=120,blank=True, null=True)
-    unique_reference_id = models.CharField(max_length=12,blank=True, null=True)
+    unique_reference_id = models.CharField(max_length=12,unique=True,blank=True, null=True)
     date_added = models.DateTimeField(auto_now=False, auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -141,30 +141,30 @@ class PaymentTransactions(models.Model):
     Description:Save the transaction details.\n
     """
     user = models.ForeignKey(User,blank=True, null=True)
-    timestamp =  models.CharField(max_length=50)
-    transaction_type = models.CharField(max_length=100)
-    amount = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=50)
+    timestamp =  models.CharField(max_length=50) #when the stk push was done
+    transaction_type = models.CharField(max_length=100,blank=True, null=True)
+    amount = models.CharField(max_length=100,blank=True, null=True)
+    phone_number = models.CharField(max_length=50,blank=True, null=True)
     account_reference= models.CharField(max_length=12,unique=True)
-    transaction_description = models.CharField(max_length=13)
+    transaction_description = models.CharField(max_length=13,blank=True, null=True)
     merchant_request_id = models.CharField(max_length=250,blank=True, null=True)
     checkout_request_id = models.CharField(max_length=250,blank=True, null=True)
     response_code = models.CharField(max_length=250,blank=True, null=True)
     response_description = models.CharField(max_length=250,blank=True, null=True)
     customer_message = models.CharField(max_length=250,blank=True, null=True)
     result_code =models.CharField(max_length=250,blank=True, null=True)
-    result_description = models.TextField()
-    mpesa_receipt_number =models.CharField(max_length=20,unique=True)
-    balance = models.IntegerField()
-    transaction_date = models.CharField(max_length=50)
-    status = models.CharField(max_length=12,choices=STATUS_CHOICES) #choice field
+    result_description = models.TextField(blank=True, null=True)
+    mpesa_receipt_number =models.CharField(max_length=20,unique=True,blank=True, null=True)
+    balance = models.IntegerField(blank=True, null=True)
+    transaction_date = models.CharField(max_length=50,blank=True, null=True)
+    status = models.CharField(max_length=12,choices=STATUS_CHOICES,default="PENDING") #choice field
     date_added = models.DateTimeField(auto_now=False, auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
 
 
     def __str__(self):
-        return self.mpesa_receipt_number
+        return self.merchant_request_id
 
 
 
