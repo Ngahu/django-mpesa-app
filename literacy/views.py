@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-
+import re
 
 from django.shortcuts import render
 
@@ -14,17 +14,28 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 ####
 
+from rest_framework.permissions import IsAuthenticated
 
 from datetime import date
 import datetime
 import base64
+import json
 
 from .models import StkPush_Online_Payment
 
 from .serializers import (
     StkPush_Online_PaymentCreateSerializer,
-    StkPush_Call_Back_CreateSerializer
+    StkPush_Call_Back_CreateSerializer,
+    PurchaseRequestItializeSerializer,
+
+    ResponseSaveSerializer,
+    CallbackSaveSerializer
     )
+
+
+
+
+
 
 
 
@@ -38,11 +49,8 @@ class RootAPIView(APIView):
         return Response({
             "payment-pay":reverse("literacy:storystory_stk_pay", request=request, format=format),
             "call-back":reverse("literacy:call_back", request=request, format=format),
+            "initialize-payment":reverse("literacy:initialize_payment", request=request, format=format),
         })
-
-
-
-
 
 
 
@@ -55,6 +63,100 @@ def to_bs(timestamp):
     the_date = str(timestamp)
     result = base64.b64encode(short_code+passkey+the_date)
     return str(result)
+
+
+
+
+class InitializePaymentAPIView(APIView):
+    """
+    Description:Endpoint to initialize payment \n
+    {
+    "plan": "2",
+    "product_id": "4"
+    }
+    """
+    permission_classes = (IsAuthenticated,)
+    
+    def post(self,request,*args,**kwargs):
+        plan = request.data['plan']
+        product_id = request.data['product_id']
+
+
+        user = request.user.id
+
+
+        
+        data = {
+            "plan":plan,
+            "product_id":product_id,
+            "user":user
+        }
+
+        serializer_class = PurchaseRequestItializeSerializer(data=data)
+
+
+        if serializer_class.is_valid():
+            purchase=serializer_class.save()
+            print(purchase)
+            print(purchase.plan)
+
+
+
+            return Response(serializer_class.data,status=status.HTTP_201_CREATED)
+        
+        return Response(serializer_class.errors,status=status.HTTP_400_BAD_REQUEST)
+
+
+        current_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')#this is to format the date
+
+
+        timestamp = datetime.datetime.now()
+        # timestamp = current_time  #for api call
+        password = to_bs(current_time) #for api call
+
+        print(password)
+        print(current_time)
+
+
+        # initialize mpesa stk push 
+        access_token = "IAH1ToV4AtPiDs9PKob5sVdHiRNZ"
+        api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+        headers = { "Authorization": "Bearer %s" % access_token }
+        request = {
+            "BusinessShortCode": "174379",
+            "Password": password,
+            "Timestamp": current_time,
+            "TransactionType": "CustomerPayBillOnline",
+            "Amount": purchase.plan,
+            "PartyA": "254725743069",
+            "PartyB": "174379",
+            "PhoneNumber": "254725743069",
+            "CallBackURL": "http://e25f4f24.ngrok.io/lit/call-back/",
+            "AccountReference": purchase.unique_reference_id,
+            "TransactionDesc": "buy exam"
+            }
+        
+        response = requests.post(api_url, json = request, headers=headers)
+
+        # save the response from mpesa
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -74,6 +176,7 @@ class PaymentAPIView(APIView):
       "tansaction_description": "bought"
     }\n
     """
+    permission_classes = (IsAuthenticated,)
 
     def post(self,request,*args,**kwargs):
         business_short_code = request.data['business_short_code']

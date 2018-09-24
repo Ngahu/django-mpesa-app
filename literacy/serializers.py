@@ -1,6 +1,100 @@
 from rest_framework import serializers
 
-from .models import StkPush_Online_Payment,StkPush_Call_Back
+from .models import (
+    StkPush_Online_Payment,
+    StkPush_Call_Back,
+    PurchaseRequest,
+    PaymentTransactions
+    )
+
+
+
+class ResponseSaveSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentTransactions
+        fields = [
+            'merchant_request_id',
+            'checkout_request_id',
+            'response_code',
+            'response_description',
+            'customer_message'
+            
+        ]
+
+        def create(self,validated_data):
+            new_response = PaymentTransactions(
+                merchant_request_id=validated_data['merchant_request_id'],
+                checkout_request_id = validated_data['checkout_request_id'],
+                response_code = validated_data['response_code'],
+                response_description = validated_data['response_description'],
+                customer_message = validated_data['customer_message']
+            )
+
+            new_response.save()
+
+            return new_response
+
+
+
+
+
+
+class CallbackSaveSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentTransactions
+        fields = [
+            'merchant_request_id',
+            'checkout_request_id',
+            'result_code',
+            'result_description'
+            
+        ]
+
+
+        def create(self,validated_data):
+            new_callback_result = PaymentTransactions(
+                merchant_request_id=validated_data['merchant_request_id'],
+                checkout_request_id = validated_data['checkout_request_id'],
+                result_code = validated_data['result_code'],
+                result_description = validated_data['result_description']
+            )
+
+            new_callback_result.save()
+
+
+            return new_callback_result
+
+
+
+
+
+
+
+
+
+
+class PurchaseRequestItializeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseRequest
+        fields = [
+            'user',
+            'product_id',
+            'plan'
+        ]
+
+        def create(self,validated_data):
+            new_purchase_request = PurchaseRequest(
+                user = validated_data['user'],
+                product_id = validated_data['product_id'],
+                plan = validated_data['plan'],
+            )
+            new_purchase_request.save()
+
+            return new_purchase_request
+
+
+
+
 
 
 

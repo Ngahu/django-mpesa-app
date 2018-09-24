@@ -5,7 +5,13 @@ from django.contrib import admin
 
 # Register your models here.
 
-from .models import StkPush_Online_Payment,StkPush_Call_Back,PurchaseRequest
+from .models import (
+    StkPush_Online_Payment,
+    StkPush_Call_Back,
+    PurchaseRequest,
+    PaymentTransactions,
+    PaymentPlan
+    )
 
 class StkPush_Online_PaymentAdmin(admin.ModelAdmin):
     list_display = (
@@ -47,3 +53,31 @@ class PurchaseRequestAdmin(admin.ModelAdmin):
 
 admin.site.register(PurchaseRequest,PurchaseRequestAdmin)
 
+
+
+
+
+
+class PaymentTransactionsAdmin(admin.ModelAdmin):
+    list_display = (
+        'phone_number',
+        'mpesa_receipt_number',
+        'status',
+        'date_added'
+    )
+
+
+admin.site.register(PaymentTransactions,PaymentTransactionsAdmin)
+
+
+
+
+class PaymentPlanAdmin(admin.ModelAdmin):
+    list_display = (
+        'name',
+        'period',
+        'price'
+    )
+
+
+admin.site.register(PaymentPlan,PaymentPlanAdmin)
