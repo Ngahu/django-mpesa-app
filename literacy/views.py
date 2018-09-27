@@ -22,7 +22,7 @@ import base64
 import json
 import requests
 
-from .models import StkPush_Online_Payment
+from .models import StkPush_Online_Payment,PaymentTransactions
 
 from .serializers import (
     StkPush_Online_PaymentCreateSerializer,
@@ -108,7 +108,7 @@ class InitializePaymentAPIView(APIView):
             "PartyA": "254725743069",
             "PartyB": "174379",
             "PhoneNumber": "254725743069",
-            "CallBackURL": "http://30bdb99f.ngrok.io/lit/call-back/",
+            "CallBackURL": "http://23a0390e.ngrok.io/lit/call-back/",
             "AccountReference":"exam",
             "TransactionDesc": "buy exam"
             }
@@ -144,11 +144,11 @@ class InitializePaymentAPIView(APIView):
             # initialize the stk push here
             current_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')#this is to format the date
 
-            timestamp = datetime.datetime.now()
+            # timestamp = datetime.datetime.now()
             # timestamp = current_time  #for api call
             password = to_bs(current_time) #for api call
             
-            # print(password)
+            print(password)
             # print(current_time)
 
 
@@ -164,25 +164,20 @@ class InitializePaymentAPIView(APIView):
             "Amount": purchase.plan,
             "PartyA": "254725743069",
             "PartyB": "174379",
-            "PhoneNumber": "254725743069",
-            "CallBackURL": "http://30bdb99f.ngrok.io/lit/call-back/",
+            "PhoneNumber": "254725706302",
+            "CallBackURL": "http://0035c6bb.ngrok.io/lit/stk-call-back/",
             "AccountReference": purchase.unique_reference_id,
             "TransactionDesc": "buy exam"
             }
             response = requests.post(api_url, json = request, headers=headers)
 
-            # print (response.text)
+            print (response.text)
 
             # format the response to json
             the_response = json.loads(response.text)
 
-            # print(the_response['CheckoutRequestID'])
-            # print(the_response['ResponseCode'])
-            # print(the_response['MerchantRequestID'])
-            # print(the_response['ResponseDescription'])
-            # print(the_response['CustomerMessage'])
 
-            # save the response from the mpesa response
+            # # save the response from the mpesa response
             data = {
                 "amount":purchase.plan,
                 "user":user,
@@ -201,7 +196,6 @@ class InitializePaymentAPIView(APIView):
                 return Response(stk_response_save_serializer.data,status=status.HTTP_201_CREATED)
             
             return Response(stk_response_save_serializer.errors,status=status.HTTP_400_BAD_REQUEST)
-
             
 
 
@@ -290,7 +284,23 @@ class PaymentAPIView(APIView):
 class CallBackURL(APIView):
 
     def post(self,request,*args,**kwargs):
-        print(request.data['Body']['stkCallback'])
+        # print(request.data['Body']['stkCallback'])
+
+        # print(request.data['Body']['stkCallback']['CallbackMetadata']['Item'])
+        res = request.data
+
+         
+
+        the_result_code = request.data['Body']['stkCallback']['ResultCode']
+
+        if the_result_code == 0 :
+            print("Success request")
+            print(res['Body']['stkCallback']['CallbackMetadata']['Item'][1]['Value']) 
+        
+        else:
+            print("Not a successful request")
+
+
 
         merchant_request_id = request.data['Body']['stkCallback']['MerchantRequestID']
         checkout_request_id = request.data['Body']['stkCallback']['CheckoutRequestID']
@@ -323,3 +333,73 @@ class CallBackURL(APIView):
             return Response(message,status=status.HTTP_200_OK)
         
         return Response(serializer_class.errors,status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+class STKPushCallBackAPIView(APIView):
+    """
+    Description:This is the endpoint where safaricom are going to send the callback after a transaction\n
+    Expected Responses are either success or error 
+    """
+    def post(self,request,*args,**kwargs):
+        
+        # first check that the request is not empty
+        if request.data:
+            print(request.data)
+
+            # get the result code
+            the_result_code = request.data['Body']['stkCallback']['ResultCode']
+
+            if the_result_code == 0:
+                # this means its successful save the response here
+                print("Success request")
+                print(request.data['Body']['stkCallback']['CallbackMetadata']['Item'][1]['Value']) 
+            
+            else:
+                #this means the payment was not success so save the error still 
+                print("This is not a successful request")
+
+
+                merchant_request_id = request.data['Body']['stkCallback']['MerchantRequestID']
+                checkout_request_id = request.data['Body']['stkCallback']['CheckoutRequestID']
+                result_code = request.data['Body']['stkCallback']['ResultCode']
+                result_description = request.data['Body']['stkCallback']['ResultDesc']
+                
+                # first do a query and get to see if the merchant_request_id and  checkout_request_id do exist
+                try:
+                    the_transaction = PaymentTransactions.objects.get(merchant_request_id=merchant_request_id,checkout_request_id=checkout_request_id)
+                    print(the_transaction)
+
+                    # update the transaction with the result code and result_description
+                    the_transaction.result_code = result_code
+                    the_transaction.result_description = result_description
+                    the_transaction.status = "FAILED"
+                    the_transaction.save()
+
+
+
+                
+                except PaymentTransactions.DoesNotExist:
+                    print("multiple objects or doesnt exist")
+                    pass
+
+
+                
+        
+        else:
+            pass
+            # print("the request is not valid")
+        
+        message = {
+            "ResultCode": 0,
+            "ResultDesc": "The service was accepted successfully",
+            "ThirdPartyTransID": "1234567890"
+            }
+        
+        return Response(message,status=status.HTTP_200_OK)

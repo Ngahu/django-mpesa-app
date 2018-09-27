@@ -9,6 +9,8 @@ from .models import (
 
 
 
+
+#### IN USE
 class ResponseSaveSerializer(serializers.ModelSerializer):
     """
     Description:Serializer to save the response returned immediately after an stk push
@@ -50,12 +52,11 @@ class ResponseSaveSerializer(serializers.ModelSerializer):
 
 
 
+###IN USE #### UNSUCCESSFUL PAYMENT SAVE 
 class CallbackSaveSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentTransactions
         fields = [
-            'merchant_request_id',
-            'checkout_request_id',
             'result_code',
             'result_description'
             
@@ -64,8 +65,6 @@ class CallbackSaveSerializer(serializers.ModelSerializer):
 
         def create(self,validated_data):
             new_callback_result = PaymentTransactions(
-                merchant_request_id=validated_data['merchant_request_id'],
-                checkout_request_id = validated_data['checkout_request_id'],
                 result_code = validated_data['result_code'],
                 result_description = validated_data['result_description']
             )
@@ -83,7 +82,7 @@ class CallbackSaveSerializer(serializers.ModelSerializer):
 
 
 
-
+#### IN USE
 class PurchaseRequestItializeSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseRequest
@@ -108,7 +107,7 @@ class PurchaseRequestItializeSerializer(serializers.ModelSerializer):
 
 
 
-
+##NOT IN USE
 class StkPush_Online_PaymentCreateSerializer(serializers.ModelSerializer):
     """
     Description:Serializer to serialize the data during the initalizing of an STK
@@ -149,7 +148,7 @@ class StkPush_Online_PaymentCreateSerializer(serializers.ModelSerializer):
 
 
 
-
+###NOT IN USE
 
 class StkPush_Call_Back_CreateSerializer(serializers.ModelSerializer):
     """
